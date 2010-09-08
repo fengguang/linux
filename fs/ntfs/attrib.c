@@ -2588,6 +2588,8 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 		unlock_page(page);
 		page_cache_release(page);
 		balance_dirty_pages_ratelimited(mapping);
+		if (fatal_signal_pending(current))
+			return -EINTR;
 		cond_resched();
 	}
 	/* If there is a last partial page, need to do it the slow way. */

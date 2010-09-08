@@ -278,6 +278,10 @@ do_non_resident_extend:
 		 * files.
 		 */
 		balance_dirty_pages_ratelimited(mapping);
+		if (fatal_signal_pending(current)) {
+			err = -EINTR;
+			goto init_err_out;
+		}
 		cond_resched();
 	} while (++index < end_index);
 	read_lock_irqsave(&ni->size_lock, flags);
@@ -2054,6 +2058,8 @@ static ssize_t ntfs_file_buffered_write(struct kiocb *iocb,
 		if (unlikely(status))
 			break;
 		balance_dirty_pages_ratelimited(mapping);
+		if (fatal_signal_pending(current))
+			break;
 		cond_resched();
 	} while (count);
 err_out:

@@ -1177,6 +1177,9 @@ pause:
 		current->dirty_paused_when = now + pause;
 		current->nr_dirtied = 0;
 
+		if (fatal_signal_pending(current))
+			break;
+
 		dirty_thresh = hard_dirty_limit(dirty_thresh);
 		/*
 		 * max-pause area. If dirty exceeded but still within this

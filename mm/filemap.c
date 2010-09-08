@@ -2460,7 +2460,8 @@ again:
 		written += copied;
 
 		balance_dirty_pages_ratelimited(mapping);
-
+		if (fatal_signal_pending(current))
+			break;
 	} while (iov_iter_count(i));
 
 	return written ? written : status;

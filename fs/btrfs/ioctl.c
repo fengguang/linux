@@ -1081,6 +1081,10 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 
 		defrag_count += ret;
 		balance_dirty_pages_ratelimited_nr(inode->i_mapping, ret);
+		if (fatal_signal_pending(current)) {
+			ret = -EINTR;
+			goto out_ra;
+		}
 		i += ret;
 
 		if (newer_than) {

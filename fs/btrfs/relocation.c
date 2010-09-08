@@ -3010,6 +3010,10 @@ static int relocate_file_extent_cluster(struct inode *inode,
 
 		index++;
 		balance_dirty_pages_ratelimited(inode->i_mapping);
+		if (fatal_signal_pending(current)) {
+			ret = -EINTR;
+			break;
+		}
 		btrfs_throttle(BTRFS_I(inode)->root);
 	}
 	WARN_ON(nr != cluster->nr);
