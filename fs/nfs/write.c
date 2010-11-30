@@ -403,15 +403,8 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 {
 	struct inode *inode = mapping->host;
 	struct nfs_server *nfss = NFS_SERVER(inode);
-	unsigned long *bitlock = &NFS_I(inode)->flags;
 	struct nfs_pageio_descriptor pgio;
 	int err;
-
-	/* Stop dirtying of new pages while we sync */
-	err = wait_on_bit_lock(bitlock, NFS_INO_FLUSHING,
-			nfs_wait_bit_killable, TASK_KILLABLE);
-	if (err)
-		goto out_err;
 
 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGES);
 
@@ -422,10 +415,6 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	nfs_wait_congested(wbc->sync_mode == WB_SYNC_ALL,
 			   &nfss->backing_dev_info,
 			   nfss->writeback_wait);
-
-	clear_bit_unlock(NFS_INO_FLUSHING, bitlock);
-	smp_mb__after_clear_bit();
-	wake_up_bit(bitlock, NFS_INO_FLUSHING);
 
 	if (err < 0)
 		goto out_err;
