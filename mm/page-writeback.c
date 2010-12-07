@@ -147,6 +147,10 @@ static int calc_period_shift(void)
 	return 2 + ilog2(dirty_total - 1);
 }
 
+void __weak nfs_update_congestion_thresh(void)
+{
+}
+
 /*
  * update the period when the dirty threshold changes.
  */
@@ -157,6 +161,7 @@ static void update_completion_period(void)
 	prop_change_shift(&vm_dirties, shift);
 
 	writeback_set_ratelimit();
+	nfs_update_congestion_thresh();
 }
 
 int dirty_background_ratio_handler(struct ctl_table *table, int write,
@@ -447,6 +452,7 @@ unsigned long bdi_dirty_limit(struct backing_dev_info *bdi, unsigned long dirty)
 
 	return bdi_dirty;
 }
+EXPORT_SYMBOL_GPL(global_dirty_limits);
 
 /*
  * Dirty position control.

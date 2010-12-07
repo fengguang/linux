@@ -1783,24 +1783,10 @@ out:
 }
 #endif
 
-int __init nfs_init_writepagecache(void)
+void nfs_update_congestion_thresh(void)
 {
-	nfs_wdata_cachep = kmem_cache_create("nfs_write_data",
-					     sizeof(struct nfs_write_data),
-					     0, SLAB_HWCACHE_ALIGN,
-					     NULL);
-	if (nfs_wdata_cachep == NULL)
-		return -ENOMEM;
-
-	nfs_wdata_mempool = mempool_create_slab_pool(MIN_POOL_WRITE,
-						     nfs_wdata_cachep);
-	if (nfs_wdata_mempool == NULL)
-		return -ENOMEM;
-
-	nfs_commit_mempool = mempool_create_slab_pool(MIN_POOL_COMMIT,
-						      nfs_wdata_cachep);
-	if (nfs_commit_mempool == NULL)
-		return -ENOMEM;
+	unsigned long background_thresh;
+	unsigned long dirty_thresh;
 
 	/*
 	 * NFS congestion size, scale with available memory.
@@ -1821,6 +1807,39 @@ int __init nfs_init_writepagecache(void)
 	nfs_congestion_kb = (16*int_sqrt(totalram_pages)) << (PAGE_SHIFT-10);
 	if (nfs_congestion_kb > 256*1024)
 		nfs_congestion_kb = 256*1024;
+
+	/*
+	 * Limit to 1/8 dirty threshold, so that writeback+in_commit pages
+	 * won't overnumber dirty+to_commit pages.
+	 */
+	global_dirty_limits(&background_thresh, &dirty_thresh);
+	dirty_thresh <<= PAGE_SHIFT - 10;
+	dirty_thresh += 1024;
+
+	if (nfs_congestion_kb > dirty_thresh / 8)
+		nfs_congestion_kb = dirty_thresh / 8;
+}
+
+int __init nfs_init_writepagecache(void)
+{
+	nfs_wdata_cachep = kmem_cache_create("nfs_write_data",
+					     sizeof(struct nfs_write_data),
+					     0, SLAB_HWCACHE_ALIGN,
+					     NULL);
+	if (nfs_wdata_cachep == NULL)
+		return -ENOMEM;
+
+	nfs_wdata_mempool = mempool_create_slab_pool(MIN_POOL_WRITE,
+						     nfs_wdata_cachep);
+	if (nfs_wdata_mempool == NULL)
+		return -ENOMEM;
+
+	nfs_commit_mempool = mempool_create_slab_pool(MIN_POOL_COMMIT,
+						      nfs_wdata_cachep);
+	if (nfs_commit_mempool == NULL)
+		return -ENOMEM;
+
+	nfs_update_congestion_thresh();
 
 	return 0;
 }
