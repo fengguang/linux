@@ -122,6 +122,10 @@ struct blkio_cgroup {
 	struct hlist_head blkg_list;
 	struct list_head policy_list; /* list of blkio_policy_node */
 	struct percpu_counter nr_dirtied;
+	unsigned long bw_time_stamp;
+	unsigned long dirtied_stamp;
+	unsigned long dirty_ratelimit;
+	unsigned long long buffered_write_bps;
 };
 
 struct blkio_group_stats {
@@ -217,6 +221,14 @@ static inline unsigned int blkcg_weight(struct blkio_cgroup *blkcg)
 {
 	return blkcg->weight;
 }
+static inline uint64_t blkcg_buffered_write_bps(struct blkio_cgroup *blkcg)
+{
+	return blkcg->buffered_write_bps;
+}
+static inline unsigned long blkcg_dirty_ratelimit(struct blkio_cgroup *blkcg)
+{
+	return blkcg->dirty_ratelimit;
+}
 
 typedef void (blkio_unlink_group_fn) (void *key, struct blkio_group *blkg);
 
@@ -271,6 +283,14 @@ static inline char *blkg_path(struct blkio_group *blkg) { return NULL; }
 static inline unsigned int blkcg_weight(struct blkio_cgroup *blkcg)
 {
 	return BLKIO_WEIGHT_DEFAULT;
+}
+static inline uint64_t blkcg_buffered_write_bps(struct blkio_cgroup *blkcg)
+{
+	return 0;
+}
+static inline unsigned long blkcg_dirty_ratelimit(struct blkio_cgroup *blkcg)
+{
+	return 0;
 }
 
 #endif
