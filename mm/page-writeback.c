@@ -1010,6 +1010,55 @@ static unsigned long bdi_max_pause(struct backing_dev_info *bdi,
 	return clamp_val(t, 4, MAX_PAUSE);
 }
 
+#ifdef CONFIG_BLK_DEV_THROTTLING
+static void blkcg_update_dirty_ratelimit(struct blkio_cgroup *blkcg,
+					 unsigned long dirtied,
+					 unsigned long elapsed)
+{
+	unsigned long long bps = blkcg->async_write_bps;
+	unsigned long long ratelimit;
+	unsigned long dirty_rate;
+
+	dirty_rate = (dirtied - blkcg->dirtied_stamp) * HZ;
+	dirty_rate /= elapsed;
+
+	ratelimit = blkcg->dirty_ratelimit;
+	ratelimit *= div_u64(bps, dirty_rate + 1);
+	ratelimit = min(ratelimit, bps);
+	ratelimit >>= PAGE_SHIFT;
+
+	blkcg->dirty_ratelimit = (blkcg->dirty_ratelimit + ratelimit) / 2 + 1;
+}
+
+void blkcg_update_bandwidth(struct blkio_cgroup *blkcg)
+{
+	unsigned long now = jiffies;
+	unsigned long dirtied;
+	unsigned long elapsed;
+
+	if (!blkcg)
+		return;
+	if (!spin_trylock(&blkcg->lock))
+		return;
+
+	elapsed = now - blkcg->bw_time_stamp;
+	dirtied = percpu_counter_read(&blkcg->nr_dirtied);
+
+	if (elapsed > MAX_PAUSE * 2)
+		goto snapshot;
+	if (elapsed <= MAX_PAUSE)
+		goto unlock;
+
+	blkcg_update_dirty_ratelimit(blkcg, dirtied, elapsed);
+snapshot:
+	blkcg->dirtied_stamp = dirtied;
+	blkcg->bw_time_stamp = now;
+unlock:
+	spin_unlock(&blkcg->lock);
+}
+
+#endif
+
 /*
  * balance_dirty_pages() must be called by processes which are generating dirty
  * data.  It looks at the number of dirty pages in the machine and will force
@@ -1037,6 +1086,12 @@ static void balance_dirty_pages(struct address_space *mapping,
 	unsigned long pos_ratio;
 	struct backing_dev_info *bdi = mapping->backing_dev_info;
 	unsigned long start_time = jiffies;
+#ifdef CONFIG_BLK_DEV_THROTTLING
+	struct blkio_cgroup *blkcg = task_blkio_cgroup(current);
+
+	if (blkcg->async_write_bps == 0)
+		blkcg = NULL;
+#endif
 
 	for (;;) {
 		unsigned long now = jiffies;
@@ -1061,6 +1116,12 @@ static void balance_dirty_pages(struct address_space *mapping,
 		freerun = dirty_freerun_ceiling(dirty_thresh,
 						background_thresh);
 		if (nr_dirty <= freerun) {
+#ifdef CONFIG_BLK_DEV_THROTTLING
+			if (blkcg) {
+				max_pause = bdi_max_pause(bdi, 0);
+				goto cgroup_ioc;
+			}
+#endif
 			current->dirty_paused_when = now;
 			current->nr_dirtied = 0;
 			break;
@@ -1128,6 +1189,14 @@ static void balance_dirty_pages(struct address_space *mapping,
 		}
 		task_ratelimit = (u64)dirty_ratelimit *
 					pos_ratio >> RATELIMIT_CALC_SHIFT;
+#ifdef CONFIG_BLK_DEV_THROTTLING
+		if (blkcg && task_ratelimit > blkcg->dirty_ratelimit) {
+cgroup_ioc:
+			blkcg_update_bandwidth(blkcg);
+			task_ratelimit = blkcg->dirty_ratelimit;
+			dirty_ratelimit = task_ratelimit;
+		}
+#endif
 		period = (HZ * pages_dirtied) / (task_ratelimit | 1);
 		pause = period;
 		if (current->dirty_paused_when)
