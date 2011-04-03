@@ -1575,6 +1575,7 @@ static void blkiocg_destroy(struct cgroup_subsys *subsys, struct cgroup *cgroup)
 
 	free_css_id(&blkio_subsys, &blkcg->css);
 	rcu_read_unlock();
+	percpu_counter_destroy(&blkcg->nr_dirtied);
 	if (blkcg != &blkio_root_cgroup)
 		kfree(blkcg);
 }
@@ -1600,6 +1601,9 @@ done:
 	INIT_HLIST_HEAD(&blkcg->blkg_list);
 
 	INIT_LIST_HEAD(&blkcg->policy_list);
+
+	percpu_counter_init(&blkcg->nr_dirtied, 0);
+
 	return &blkcg->css;
 }
 
