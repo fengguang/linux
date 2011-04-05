@@ -1230,6 +1230,7 @@ void set_page_dirty_balance(struct page *page, int page_mkwrite)
 }
 
 static DEFINE_PER_CPU(int, bdp_ratelimits);
+DEFINE_PER_CPU(int, dirty_leaks) = 0;
 
 /**
  * balance_dirty_pages_ratelimited_nr - balance dirty memory state
@@ -1277,6 +1278,17 @@ void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
 			*p = 0;
 			ratelimit = 0;
 		}
+	}
+	/*
+	 * Pick up the dirtied pages by the exited tasks. This avoids lots of
+	 * short-lived tasks (eg. gcc invocations in a kernel build) escaping
+	 * the dirty throttling and livelock other long-run dirtiers.
+	 */
+	p = &__get_cpu_var(dirty_leaks);
+	if (*p > 0 && current->nr_dirtied < ratelimit) {
+		nr_pages_dirtied = min(*p, ratelimit - current->nr_dirtied);
+		*p -= nr_pages_dirtied;
+		current->nr_dirtied += nr_pages_dirtied;
 	}
 	preempt_enable();
 
