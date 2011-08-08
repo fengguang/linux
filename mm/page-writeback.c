@@ -1829,6 +1829,17 @@ int __set_page_dirty_nobuffers(struct page *page)
 }
 EXPORT_SYMBOL(__set_page_dirty_nobuffers);
 
+void account_page_redirty(struct page *page)
+{
+	struct address_space *mapping = page->mapping;
+	if (mapping && mapping_cap_account_dirty(mapping)) {
+		current->nr_dirtied--;
+		dec_zone_page_state(page, NR_DIRTIED);
+		dec_bdi_stat(mapping->backing_dev_info, BDI_DIRTIED);
+	}
+}
+EXPORT_SYMBOL(account_page_redirty);
+
 /*
  * When a writepage implementation decides that it doesn't want to write this
  * page for some reason, it should redirty the locked page via
@@ -1837,6 +1848,7 @@ EXPORT_SYMBOL(__set_page_dirty_nobuffers);
 int redirty_page_for_writepage(struct writeback_control *wbc, struct page *page)
 {
 	wbc->pages_skipped++;
+	account_page_redirty(page);
 	return __set_page_dirty_nobuffers(page);
 }
 EXPORT_SYMBOL(redirty_page_for_writepage);
