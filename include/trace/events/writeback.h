@@ -180,6 +180,38 @@ TRACE_EVENT(writeback_queue_io,
 		__entry->moved)
 );
 
+TRACE_EVENT(task_io,
+	TP_PROTO(struct task_struct *task),
+	TP_ARGS(task),
+
+	TP_STRUCT__entry(
+		__field(unsigned long long,	read_bytes)
+		__field(unsigned long long,	write_bytes)
+		__field(unsigned long long,	cancelled_write_bytes)
+	),
+
+	TP_fast_assign(
+		struct task_io_accounting *ioac = &task->ioac;
+
+#ifdef CONFIG_TASK_IO_ACCOUNTING
+		__entry->read_bytes		= ioac->read_bytes;
+		__entry->write_bytes		= ioac->write_bytes;
+		__entry->cancelled_write_bytes	= ioac->cancelled_write_bytes;
+#else
+		__entry->read_bytes		= 0;
+		__entry->write_bytes		= 0;
+		__entry->cancelled_write_bytes	= 0;
+#endif
+	),
+
+	TP_printk("read=%llu write=%llu cancelled_write=%llu",
+		  __entry->read_bytes,
+		  __entry->write_bytes,
+		  __entry->cancelled_write_bytes
+	)
+);
+
+
 TRACE_EVENT(global_dirty_state,
 
 	TP_PROTO(unsigned long background_thresh,
