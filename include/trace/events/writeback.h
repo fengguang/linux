@@ -188,6 +188,8 @@ TRACE_EVENT(task_io,
 		__field(unsigned long long,	read_bytes)
 		__field(unsigned long long,	write_bytes)
 		__field(unsigned long long,	cancelled_write_bytes)
+		__field(int,			nr_dirtied)
+		__field(int,			nr_dirtied_pause)
 	),
 
 	TP_fast_assign(
@@ -202,12 +204,17 @@ TRACE_EVENT(task_io,
 		__entry->write_bytes		= 0;
 		__entry->cancelled_write_bytes	= 0;
 #endif
+		__entry->nr_dirtied		= task->nr_dirtied;
+		__entry->nr_dirtied_pause	= task->nr_dirtied_pause;
 	),
 
-	TP_printk("read=%llu write=%llu cancelled_write=%llu",
+	TP_printk("read=%llu write=%llu cancelled_write=%llu "
+		  "nr_dirtied=%d nr_dirtied_pause=%d",
 		  __entry->read_bytes,
 		  __entry->write_bytes,
-		  __entry->cancelled_write_bytes
+		  __entry->cancelled_write_bytes,
+		  __entry->nr_dirtied,
+		  __entry->nr_dirtied_pause
 	)
 );
 
