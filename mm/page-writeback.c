@@ -1080,6 +1080,8 @@ static void balance_dirty_pages(struct address_space *mapping,
 			bdi_dirty = bdi_reclaimable +
 				    bdi_stat(bdi, BDI_WRITEBACK);
 		}
+		trace_bdi_dirty_state(bdi, bdi_thresh,
+				      bdi_dirty, bdi_reclaimable);
 
 		dirty_exceeded = (bdi_dirty > bdi_thresh) ||
 				  (nr_dirty > dirty_thresh);

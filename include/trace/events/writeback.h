@@ -265,6 +265,46 @@ TRACE_EVENT(global_dirty_state,
 	)
 );
 
+TRACE_EVENT(bdi_dirty_state,
+
+	TP_PROTO(struct backing_dev_info *bdi,
+		 unsigned long bdi_thresh,
+		 unsigned long bdi_dirty,
+		 unsigned long bdi_reclaimable
+	),
+
+	TP_ARGS(bdi, bdi_thresh, bdi_dirty, bdi_reclaimable),
+
+	TP_STRUCT__entry(
+		__array(char,		bdi, 32)
+		__field(unsigned long,	bdi_reclaimable)
+		__field(unsigned long,	bdi_writeback)
+		__field(unsigned long,	bdi_thresh)
+		__field(unsigned long,	bdi_dirtied)
+		__field(unsigned long,	bdi_written)
+	),
+
+	TP_fast_assign(
+		strlcpy(__entry->bdi, dev_name(bdi->dev), 32);
+		__entry->bdi_reclaimable	= bdi_reclaimable;
+		__entry->bdi_writeback		= bdi_dirty - bdi_reclaimable;
+		__entry->bdi_thresh		= bdi_thresh;
+		__entry->bdi_dirtied		= bdi_stat(bdi, BDI_DIRTIED);
+		__entry->bdi_written		= bdi_stat(bdi, BDI_WRITTEN);
+	),
+
+	TP_printk("bdi %s: reclaimable=%lu writeback=%lu "
+		  "thresh=%lu "
+		  "dirtied=%lu written=%lu",
+		  __entry->bdi,
+		  __entry->bdi_reclaimable,
+		  __entry->bdi_writeback,
+		  __entry->bdi_thresh,
+		  __entry->bdi_dirtied,
+		  __entry->bdi_written
+	)
+);
+
 #define KBps(x)			((x) << (PAGE_SHIFT - 10))
 
 TRACE_EVENT(dirty_ratelimit,
