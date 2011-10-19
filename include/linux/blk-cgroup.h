@@ -113,6 +113,7 @@ enum blkcg_file_name_throtl {
 	BLKIO_THROTL_write_iops_device,
 	BLKIO_THROTL_io_service_bytes,
 	BLKIO_THROTL_io_serviced,
+	BLKIO_THROTL_buffered_write_bps,
 };
 
 struct blkio_cgroup {

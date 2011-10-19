@@ -1355,6 +1355,12 @@ static u64 blkiocg_file_read_u64 (struct cgroup *cgrp, struct cftype *cft) {
 			return (u64)blkcg->weight;
 		}
 		break;
+	case BLKIO_POLICY_THROTL:
+		switch (name) {
+		case BLKIO_THROTL_buffered_write_bps:
+			return (u64)blkcg->buffered_write_bps;
+		}
+		break;
 	default:
 		BUG();
 	}
@@ -1375,6 +1381,13 @@ blkiocg_file_write_u64(struct cgroup *cgrp, struct cftype *cft, u64 val)
 		switch(name) {
 		case BLKIO_PROP_weight:
 			return blkio_weight_write(blkcg, val);
+		}
+		break;
+	case BLKIO_POLICY_THROTL:
+		switch (name) {
+		case BLKIO_THROTL_buffered_write_bps:
+			blkcg->buffered_write_bps = val;
+			return 0;
 		}
 		break;
 	default:
@@ -1499,6 +1512,14 @@ struct cftype blkio_files[] = {
 		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_THROTL,
 				BLKIO_THROTL_io_serviced),
 		.read_map = blkiocg_file_read_map,
+	},
+	{
+		.name = "throttle.buffered_write_bps",
+		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_THROTL,
+				BLKIO_THROTL_buffered_write_bps),
+		.read_u64 = blkiocg_file_read_u64,
+		.write_u64 = blkiocg_file_write_u64,
+		.max_write_len = 256,
 	},
 #endif /* CONFIG_BLK_DEV_THROTTLING */
 
