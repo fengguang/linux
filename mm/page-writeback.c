@@ -1124,6 +1124,11 @@ static void balance_dirty_pages(struct address_space *mapping,
 				goto cgroup_ioc;
 			}
 #endif
+			if (current->signal->rlim[RLIMIT_RSS].rlim_cur !=
+			    RLIM_INFINITY) {
+				max_pause = bdi_max_pause(bdi, 0);
+				goto task_ioc;
+			}
 			current->dirty_paused_when = now;
 			current->nr_dirtied = 0;
 			break;
@@ -1199,6 +1204,13 @@ cgroup_ioc:
 			dirty_ratelimit = task_ratelimit;
 		}
 #endif
+		if (task_ratelimit >
+		    current->signal->rlim[RLIMIT_RSS].rlim_cur >> PAGE_SHIFT) {
+task_ioc:
+			task_ratelimit =
+		    current->signal->rlim[RLIMIT_RSS].rlim_cur >> PAGE_SHIFT;
+			dirty_ratelimit = task_ratelimit;
+		}
 		period = (HZ * pages_dirtied) / (task_ratelimit | 1);
 		pause = period;
 		if (current->dirty_paused_when)
