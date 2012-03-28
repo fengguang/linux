@@ -21,6 +21,10 @@ enum blkio_policy_id {
 	BLKIO_POLICY_THROTL,		/* Throttling */
 };
 
+#define BLKIO_WEIGHT_MIN	10
+#define BLKIO_WEIGHT_MAX	1000
+#define BLKIO_WEIGHT_DEFAULT	500
+
 /* Max limits for throttle policy */
 #define THROTL_IOPS_MAX		UINT_MAX
 
@@ -209,6 +213,11 @@ extern unsigned int blkcg_get_read_iops(struct blkio_cgroup *blkcg,
 extern unsigned int blkcg_get_write_iops(struct blkio_cgroup *blkcg,
 				     dev_t dev);
 
+static inline unsigned int blkcg_weight(struct blkio_cgroup *blkcg)
+{
+	return blkcg->weight;
+}
+
 typedef void (blkio_unlink_group_fn) (void *key, struct blkio_group *blkg);
 
 typedef void (blkio_update_group_weight_fn) (void *key,
@@ -259,11 +268,12 @@ static inline void blkio_policy_unregister(struct blkio_policy_type *blkiop) { }
 
 static inline char *blkg_path(struct blkio_group *blkg) { return NULL; }
 
-#endif
+static inline unsigned int blkcg_weight(struct blkio_cgroup *blkcg)
+{
+	return BLKIO_WEIGHT_DEFAULT;
+}
 
-#define BLKIO_WEIGHT_MIN	10
-#define BLKIO_WEIGHT_MAX	1000
-#define BLKIO_WEIGHT_DEFAULT	500
+#endif
 
 #ifdef CONFIG_DEBUG_BLK_CGROUP
 void blkiocg_update_avg_queue_size_stats(struct blkio_group *blkg);

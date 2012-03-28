@@ -905,11 +905,6 @@ static void bdi_update_dirty_ratelimit(struct backing_dev_info *bdi,
 	 */
 	balanced_dirty_ratelimit = div_u64((u64)task_ratelimit * write_bw,
 					   dirty_rate | 1);
-	/*
-	 * balanced_dirty_ratelimit ~= (write_bw / N) <= write_bw
-	 */
-	if (unlikely(balanced_dirty_ratelimit > write_bw))
-		balanced_dirty_ratelimit = write_bw;
 
 	/*
 	 * We could safely do this and return immediately:
@@ -1263,6 +1258,11 @@ static void balance_dirty_pages(struct address_space *mapping,
 					       bdi_thresh, bdi_dirty);
 		task_ratelimit = ((u64)dirty_ratelimit * pos_ratio) >>
 							RATELIMIT_CALC_SHIFT;
+
+		if (blkcg_weight(blkcg) != BLKIO_WEIGHT_DEFAULT)
+			task_ratelimit = (u64)task_ratelimit *
+				blkcg_weight(blkcg) / BLKIO_WEIGHT_DEFAULT;
+
 		max_pause = bdi_max_pause(bdi, bdi_dirty);
 		min_pause = bdi_min_pause(bdi, max_pause,
 					  task_ratelimit, dirty_ratelimit,
